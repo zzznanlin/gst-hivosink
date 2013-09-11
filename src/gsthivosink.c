@@ -128,6 +128,7 @@ hi_vo_init (GstHivosink * hivosink)
     return HI_FAILURE;
   }
 
+  memset(&WinAttr, 0, sizeof(HI_DRV_WIN_ATTR_S));
   WinAttr.bVirtual = HI_FALSE;
   WinAttr.enDisp = HI_DRV_DISPLAY_1;
   WinAttr.enARCvrs = HI_DRV_ASP_RAT_MODE_FULL;
