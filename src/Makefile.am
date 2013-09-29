@@ -18,7 +18,7 @@ libgsthivosink_la_SOURCES = gsthivosink.c mpi_win.c gsthivosink.h
 
 # compiler and linker flags used to compile this plugin, set in configure.ac
 libgsthivosink_la_CFLAGS = $(GST_CFLAGS)
-libgsthivosink_la_LIBADD = $(GST_LIBS) $(GST_PLUGINS_BASE_LIBS) -lgstvideo-0.10
+libgsthivosink_la_LIBADD = $(GST_LIBS) $(GST_PLUGINS_BASE_LIBS)
 libgsthivosink_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 libgsthivosink_la_LIBTOOLFLAGS = --tag=disable-static
 
