@@ -49,7 +49,17 @@
 GST_DEBUG_CATEGORY_STATIC (gst_hivosink_debug_category);
 #define GST_CAT_DEFAULT gst_hivosink_debug_category
 
+#define DEFAULT_WINDOW_RECT_X       0
+#define DEFAULT_WINDOW_RECT_Y       0
+#define DEFAULT_WINDOW_RECT_WIDTH   1920
+#define DEFAULT_WINDOW_RECT_HEIGHT  1080
+
 /* prototypes */
+enum
+{
+  PROP_0,
+  PROP_WINDOW_RECT,
+};
 
 
 static void gst_hivosink_set_property (GObject * object,
@@ -113,6 +123,11 @@ gst_hivosink_class_init (GstHivosinkClass * klass)
   gobject_class->finalize = gst_hivosink_finalize;
   video_sink_class->show_frame = GST_DEBUG_FUNCPTR (gst_hivosink_show_frame);
 
+  g_object_class_install_property (gobject_class, PROP_WINDOW_RECT,
+    g_param_spec_string ("window-rect", "Window Rect",
+        "The overylay window rect (x,y,width,height)",
+        NULL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
 }
 
 static gint
@@ -137,10 +152,10 @@ hi_vo_init (GstHivosink * hivosink)
   WinAttr.stInRect.s32Y = 0;
   WinAttr.stInRect.s32Width = 0;
   WinAttr.stInRect.s32Height = 0;
-  WinAttr.stOutRect.s32X = 0;
-  WinAttr.stOutRect.s32Y = 0;
-  WinAttr.stOutRect.s32Width = 1920;
-  WinAttr.stOutRect.s32Height = 1080;
+  WinAttr.stOutRect.s32X = hivosink->x;
+  WinAttr.stOutRect.s32Y = hivosink->y;
+  WinAttr.stOutRect.s32Width = hivosink->width;
+  WinAttr.stOutRect.s32Height = hivosink->height;
 
   ret = HI_MPI_WIN_Create (&WinAttr, &hWin);
   if (HI_SUCCESS != ret) {
@@ -173,34 +188,66 @@ vo_deinit:
 static void
 gst_hivosink_init (GstHivosink * hivosink, GstHivosinkClass * hivosink_class)
 {
-  gint ret;
+    gint ret;
 
-  hivosink->sinkpad =
+    hivosink->sinkpad =
       gst_pad_new_from_static_template (&gst_hivosink_sink_template, "sink");
 
-  hivosink->vo_hdl = -1;
-  hivosink->frame_width = 0;
-  hivosink->frame_height = 0;
+    hivosink->vo_hdl = NULL;
+    hivosink->frame_width = 0;
+    hivosink->frame_height = 0;
+    hivosink->x = DEFAULT_WINDOW_RECT_X;
+    hivosink->y = DEFAULT_WINDOW_RECT_Y;
+    hivosink->width = DEFAULT_WINDOW_RECT_WIDTH;
+    hivosink->height = DEFAULT_WINDOW_RECT_HEIGHT;
 
-  ret = hi_vo_init (hivosink);
-  if (HI_SUCCESS != ret)
-    GST_ERROR ("hi_vo_init failed!");
+    ret = hi_vo_init (hivosink);
+    if (HI_SUCCESS != ret)
+        GST_ERROR ("hi_vo_init failed!");
 }
 
 void
 gst_hivosink_set_property (GObject * object, guint property_id,
     const GValue * value, GParamSpec * pspec)
 {
-  GstHivosink *hivosink;
+    GstHivosink *hivosink;
 
-  g_return_if_fail (GST_IS_HIVOSINK (object));
-  hivosink = GST_HIVOSINK (object);
+    g_return_if_fail (GST_IS_HIVOSINK (object));
+    hivosink = GST_HIVOSINK (object);
 
-  switch (property_id) {
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-      break;
-  }
+    switch (property_id)
+    {
+        case PROP_WINDOW_RECT:
+            {
+                gint ret;
+                gint tempx,tempy,tempw,temph;
+                HI_DRV_WIN_ATTR_S WinAttr;
+
+                ret = sscanf(g_value_get_string (value), "%d,%d,%d,%d",
+                    &tempx, &tempy, &tempw, &temph);
+                if( ret == 4 )
+                {
+                    hivosink->x = tempx;
+                    hivosink->y = tempy;
+                    hivosink->width = tempw;
+                    hivosink->height = temph;
+
+                    if(hivosink->vo_hdl)
+                    {
+                        HI_MPI_WIN_GetAttr(hivosink->vo_hdl, &WinAttr);
+                        WinAttr.stOutRect.s32X = hivosink->x;
+                        WinAttr.stOutRect.s32Y = hivosink->y;
+                        WinAttr.stOutRect.s32Width = hivosink->width;
+                        WinAttr.stOutRect.s32Height = hivosink->height;
+                        HI_MPI_WIN_SetAttr(hivosink->vo_hdl, &WinAttr);
+                    }
+                }
+            }
+            break;
+        default:
+            G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+            break;
+    }
 }
 
 void
@@ -213,6 +260,14 @@ gst_hivosink_get_property (GObject * object, guint property_id,
   hivosink = GST_HIVOSINK (object);
 
   switch (property_id) {
+    case PROP_WINDOW_RECT:
+      {
+        char rect_str[64];
+        sprintf(rect_str, "%d,%d,%d,%d",
+            hivosink->x, hivosink->y, hivosink->width, hivosink->height);
+        g_value_set_string (value, rect_str);
+      }
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
       break;
@@ -296,33 +351,33 @@ static gchar *
 try_dump_describe_caps (GstCaps * caps)
 {
   gchar *media = NULL;
- 
+
     if (gst_caps_is_any (caps) || gst_caps_is_empty (caps)) {
       media = gst_caps_to_string (caps);
- 
+
     } else {
       GString *str = NULL;
       guint i;
       guint slen = 0;
- 
+
       for (i = 0; i < gst_caps_get_size (caps); i++) {
         slen += 25 +
             STRUCTURE_ESTIMATED_STRING_LEN (gst_caps_get_structure (caps, i));
       }
- 
+
       str = g_string_sized_new (slen);
       for (i = 0; i < gst_caps_get_size (caps); i++) {
         GstStructure *structure = gst_caps_get_structure (caps, i);
- 
+
         g_string_append (str, gst_structure_get_name (structure));
         g_string_append (str, "\\l");
- 
+
         gst_structure_foreach (structure, string_append_field, (gpointer) str);
       }
- 
+
       media = g_string_free (str, FALSE);
     }
- 
+
   return media;
 }
 #endif
@@ -332,58 +387,58 @@ static HI_VOID DrvSetVideoFrameInfoDefaultValue(HI_DRV_VIDEO_FRAME_S *pstFrame,
 {
     HI_DRV_VIDEO_PRIVATE_S *pstPrivInfo;
     HI_U32 u32StrW, u32StrH;
- 
+
     if (!pstFrame)
     {
         printf("Input null pointer!\n");
         return;
     }
- 
+
     memset(pstFrame, 0, sizeof(HI_DRV_VIDEO_FRAME_S));
- 
+
     u32StrW = (u32W + 0xf) & 0xFFFFFFF0ul;
- 
+
     pstFrame->u32FrameIndex = 0;
-    pstFrame->stBufAddr[0].u32PhyAddr_Y = u32PhyAddr; 
+    pstFrame->stBufAddr[0].u32PhyAddr_Y = u32PhyAddr;
     pstFrame->stBufAddr[0].u32PhyAddr_C = u32PhyAddr + (u32StrW * u32H);
     pstFrame->stBufAddr[0].u32Stride_Y = u32StrW;
     pstFrame->stBufAddr[0].u32Stride_C = u32StrW;
- 
+
     pstFrame->u32Width  = u32W;
     pstFrame->u32Height = u32H;
- 
+
     pstFrame->u32SrcPts = 0xffffffff;  /* 0xffffffff means unknown */
     pstFrame->u32Pts    = 0xffffffff;  /* 0xffffffff means unknown */
- 
+
     pstFrame->u32AspectWidth  = 0;
     pstFrame->u32AspectHeight = 0;
     pstFrame->u32FrameRate    = 0;     /* in 1/100 Hz, 0 means unknown */
- 
+
     pstFrame->ePixFormat = HI_DRV_PIX_FMT_NV21;
     pstFrame->bProgressive = HI_TRUE;
     pstFrame->enFieldMode  = HI_DRV_FIELD_ALL;
     pstFrame->bTopFieldFirst = HI_TRUE;
- 
+
     //display region in rectangle (x,y,w,h)
     pstFrame->stDispRect.s32X = 0;
     pstFrame->stDispRect.s32Y = 0;
     pstFrame->stDispRect.s32Width  = pstFrame->u32Width;
     pstFrame->stDispRect.s32Height = pstFrame->u32Height;
- 
+
     pstFrame->eFrmType = HI_DRV_FT_NOT_STEREO;
     pstFrame->u32Circumrotate = 0;
     pstFrame->bToFlip_H = HI_FALSE;
     pstFrame->bToFlip_V = HI_FALSE;
     pstFrame->u32ErrorLevel = 0;
- 
+
     pstPrivInfo = (HI_DRV_VIDEO_PRIVATE_S *)&(pstFrame->u32Priv[0]);
- 
+
     pstPrivInfo->bValid = HI_TRUE;
     pstPrivInfo->u32LastFlag = HI_FALSE;
     pstPrivInfo->eColorSpace = HI_DRV_CS_BT709_YUV_LIMITED;
     pstPrivInfo->eOriginField = HI_DRV_FIELD_ALL;
     pstPrivInfo->stOriginImageRect = pstFrame->stDispRect;
- 
+
     return;
 }
 

@@ -41,6 +41,7 @@ struct _GstHivosink
 
   gint vo_hdl;
   gint frame_width, frame_height;
+  gint x, y, width, height;
   glong frame_count;
 };
 
