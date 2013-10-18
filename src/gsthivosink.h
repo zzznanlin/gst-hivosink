@@ -39,9 +39,11 @@ struct _GstHivosink
 
   GstPad *sinkpad;
 
-  gint vo_hdl;
+  guint vo_hdl;
   gint frame_width, frame_height;
   gint x, y, width, height;
+  gboolean freeze, stop_keep_frame;
+  guint64 current_timestamp;
   glong frame_count;
 };
 

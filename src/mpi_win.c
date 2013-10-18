@@ -181,13 +181,13 @@ HI_S32 HI_MPI_WIN_Destroy(HI_HANDLE hWindow)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     CHECK_VO_INIT();
 
     Ret = ioctl(g_VoDevFd, CMD_WIN_DESTROY, &hWindow);
-    
+
     return Ret;
 }
 
@@ -200,7 +200,7 @@ HI_S32 HI_MPI_WIN_SetEnable(HI_HANDLE hWindow, HI_BOOL bEnable)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if ((bEnable != HI_TRUE)
@@ -217,7 +217,7 @@ HI_S32 HI_MPI_WIN_SetEnable(HI_HANDLE hWindow, HI_BOOL bEnable)
     VoWinEnable.bEnable = bEnable;
 
     Ret = ioctl(g_VoDevFd, CMD_WIN_SET_ENABLE, &VoWinEnable);
-    
+
     return Ret;
 }
 
@@ -230,7 +230,7 @@ HI_S32 HI_MPI_WIN_GetEnable(HI_HANDLE hWindow, HI_BOOL *pbEnable)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pbEnable)
@@ -263,7 +263,7 @@ HI_S32 HI_MPI_WIN_SetAttr(HI_HANDLE hWindow, const HI_DRV_WIN_ATTR_S *pWinAttr)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pWinAttr)
@@ -285,7 +285,7 @@ HI_S32 HI_MPI_WIN_SetAttr(HI_HANDLE hWindow, const HI_DRV_WIN_ATTR_S *pWinAttr)
     memcpy(&VoWinCreate.WinAttr, pWinAttr, sizeof(HI_DRV_WIN_ATTR_S));
 
     Ret = ioctl(g_VoDevFd, CMD_WIN_SET_ATTR, &VoWinCreate);
-    
+
     return Ret;
 }
 
@@ -297,7 +297,7 @@ HI_S32 HI_MPI_WIN_GetAttr(HI_HANDLE hWindow, HI_DRV_WIN_ATTR_S *pWinAttr)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pWinAttr)
@@ -330,7 +330,7 @@ HI_S32 HI_MPI_WIN_SendFrame(HI_HANDLE hWindow, HI_DRV_VIDEO_FRAME_S *pFrame)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pFrame)
@@ -345,7 +345,7 @@ HI_S32 HI_MPI_WIN_SendFrame(HI_HANDLE hWindow, HI_DRV_VIDEO_FRAME_S *pFrame)
 	VoWinFrame.stFrame = *pFrame;
 
     Ret = ioctl(g_VoDevFd, CMD_WIN_SEND_FRAME, &VoWinFrame);
-    
+
     return Ret;
 }
 
@@ -357,7 +357,7 @@ HI_S32 HI_MPI_WIN_DequeueFrame(HI_HANDLE hWindow, HI_DRV_VIDEO_FRAME_S *pFrame)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pFrame)
@@ -387,7 +387,7 @@ HI_S32 HI_MPI_WIN_QueueFrame(HI_HANDLE hWindow, HI_DRV_VIDEO_FRAME_S *pFrame)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pFrame)
@@ -415,7 +415,7 @@ HI_S32 HI_MPI_WIN_QueueUselessFrame(HI_HANDLE hWindow, HI_DRV_VIDEO_FRAME_S *pFr
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (!pFrame)
@@ -428,12 +428,47 @@ HI_S32 HI_MPI_WIN_QueueUselessFrame(HI_HANDLE hWindow, HI_DRV_VIDEO_FRAME_S *pFr
 
     VoWinFrame.hWindow = hWindow;
 	VoWinFrame.stFrame = *pFrame;
-	
+
     Ret = ioctl(g_VoDevFd, CMD_WIN_QU_ULSFRAME, &VoWinFrame);
 
     return Ret;
 }
 
+HI_S32 HI_MPI_WIN_Freeze(HI_HANDLE hWindow, HI_BOOL bEnable, HI_DRV_WIN_SWITCH_E enWinFreezeMode)
+{
+    HI_S32           Ret;
+    WIN_FREEZE_S  VoWinFreeze;
+
+    if (HI_INVALID_HANDLE == hWindow)
+    {
+        HI_ERR_WIN("para hWindow is invalid.\n");
+        return HI_FAILURE;
+    }
+
+    if ((bEnable != HI_TRUE)
+      &&(bEnable != HI_FALSE)
+       )
+    {
+        HI_ERR_WIN("para bEnable is invalid.\n");
+        return HI_FAILURE;
+    }
+
+    if (enWinFreezeMode >= HI_DRV_WIN_SWITCH_BUTT)
+    {
+        HI_ERR_WIN("para enWinFreezeMode is invalid.\n");
+        return HI_FAILURE;
+    }
+
+    CHECK_VO_INIT();
+
+    VoWinFreeze.hWindow = hWindow;
+    VoWinFreeze.bEnable = bEnable;
+    VoWinFreeze.eMode   = enWinFreezeMode;
+
+    Ret = ioctl(g_VoDevFd, CMD_WIN_FREEZE, &VoWinFreeze);
+
+    return Ret;
+}
 
 HI_S32 HI_MPI_WIN_Reset(HI_HANDLE hWindow, HI_DRV_WIN_SWITCH_E enWinFreezeMode)
 {
@@ -443,7 +478,7 @@ HI_S32 HI_MPI_WIN_Reset(HI_HANDLE hWindow, HI_DRV_WIN_SWITCH_E enWinFreezeMode)
     if (HI_INVALID_HANDLE == hWindow)
     {
         HI_ERR_WIN("para hWindow is invalid.\n");
-        return HI_FAILURE; 
+        return HI_FAILURE;
     }
 
     if (enWinFreezeMode >= HI_DRV_WIN_SWITCH_BUTT)
@@ -458,7 +493,7 @@ HI_S32 HI_MPI_WIN_Reset(HI_HANDLE hWindow, HI_DRV_WIN_SWITCH_E enWinFreezeMode)
     VoWinReset.eMode = enWinFreezeMode;
 
     Ret = ioctl(g_VoDevFd, CMD_WIN_RESET, &VoWinReset);
-    
+
     return Ret;
 }
 
