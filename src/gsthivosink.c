@@ -341,6 +341,8 @@ void gst_hivosink_finalize (GObject * object)
 
     /* clean up object here */
     hivosink = hivosink;
+    if( hivosink->vo_hdl)
+        HI_UNF_VO_DestroyWindow(hivosink->vo_hdl);
 
     G_OBJECT_CLASS (parent_class)->finalize (object);
 }
